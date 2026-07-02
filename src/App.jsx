@@ -180,6 +180,12 @@ export default function TiendaZapatillasCompleta() {
                   onChange={(e) => setBusqueda(e.target.value)}
                   className="w-full bg-slate-100 border border-transparent rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-hidden focus:bg-white focus:border-[#FF6696] transition-all"
                 />
+                <button 
+                  type="button"
+                  className="absolute right-1 top-1 bottom-1 bg-[#FF6696] text-white text-[11px] font-bold px-3 rounded-lg hover:bg-[#FF0A57]/70 transition-colors cursor-pointer"
+                >
+                  Buscar
+                </button>
               </div>
 
               {/* Selector Mayor/Menor y Carrito de Escritorio */}
