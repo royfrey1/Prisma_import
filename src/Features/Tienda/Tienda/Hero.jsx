@@ -6,7 +6,7 @@ export default function Hero() {
   const textoMarquesina = " • ENVÍOS A TODO EL PAÍS • PRISMA IMPORT • CALIDAD PREMIUM • LAS MEJORES MARCAS • PRECIOS DE FABRICA • REVENTA";
 
   return (
-    <div className="relative bg-slate-950 text-white overflow-hidden select-none">
+    <section id="hero" className="relative scroll-mt-20 bg-slate-950 text-white overflow-hidden select-none">
       
       {/* Fondo estético con sutil degradado urbano */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,10,87,0.15),transparent_50%)]"></div>
@@ -53,6 +53,6 @@ export default function Hero() {
         </div>
       </div>
 
-    </div>
+    </section>
   );
 }

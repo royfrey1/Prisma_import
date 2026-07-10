@@ -15,14 +15,16 @@ export default function Navbar({
         
         {/* Fila superior en móvil / Bloque Izquierdo en Desktop */}
         <div className="flex justify-between items-center w-full md:w-auto">
-          <div>
-            <span className="text-xl font-black tracking-tighter text-[#FF6696]/50">
+          <button onClick={() => {
+              document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' });
+            }}>
+            <span className="cursor-pointer text-xl font-black tracking-tighter text-[#FF6696]/50">
               PRISMA<span className="text-[#FF6696]">_IMPORT</span>
             </span>
             <span className="text-[9px] block font-bold text-[#D892A8] tracking-wider uppercase -mt-0.5">
               Mayor & Menor
             </span>
-          </div>
+          </button>
           
           {/* Botón Carrito Móvil (Se muestra solo en celulares) */}
           <button 

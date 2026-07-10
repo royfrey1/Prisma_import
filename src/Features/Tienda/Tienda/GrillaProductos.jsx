@@ -3,11 +3,11 @@ import TarjetaProducto from './TarjetaProducto';
 
 export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, onVerDetalle }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 px-3 sm:px-4 py-8 max-w-7xl mx-auto">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-4 px-3 sm:px-4 py-8 max-w-7xl mx-auto">
       {productosFiltrados.map((prod) => (
         <div 
           key={prod.id}
-          className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between p-2.5 sm:p-3 group hover:shadow-md transition-all duration-300"
+          className="bg-white border border-slate-100 rounded-md overflow-hidden shadow-2xs flex flex-col justify-between p-2.5 sm:p-3 group hover:shadow-md transition-all duration-300"
         >
           {/* TOP: Imagen y Badges */}
           <div className="h-36 sm:h-44 md:h-48 bg-slate-50 rounded-xl overflow-hidden relative flex items-center justify-center shrink-0">
