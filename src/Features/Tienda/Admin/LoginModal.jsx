@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function LoginModal({
-  mostrarLogin,
-  setMostrarLogin,
-  handleLoginAdministrador,
-  cargando
-}) {
+export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginAdministrador, cargando }) {
+
+  // 🔒 SOLUCIÓN 2: Controla el scroll usando el estado real 'mostrarLogin'
+  useEffect(() => {
+    if (mostrarLogin) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mostrarLogin]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mostrarPassword, setMostrarPassword] = useState(false); // Estado para alternar visibilidad
-
-  if (!mostrarLogin) return null;
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -18,10 +25,18 @@ export default function LoginModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div 
+      className={`fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        mostrarLogin ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}
+    >
       <div className="absolute inset-0" onClick={() => setMostrarLogin(false)}></div>
       
-      <div className="bg-white max-w-sm w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-200 relative animate-fadeIn z-10">
+      <div 
+        className={`bg-white max-w-md w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-200 relative z-10 transition-all duration-300 transform ${
+          mostrarLogin ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+        }`}
+      >
         
         {/* CABECERA */}
         <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
@@ -56,7 +71,7 @@ export default function LoginModal({
             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Contraseña</label>
             <div className="relative">
               <input 
-                type={mostrarPassword ? "text" : "password"} // Cambia dinámicamente
+                type={mostrarPassword ? "text" : "password"} 
                 required 
                 placeholder="••••••••" 
                 value={password} 

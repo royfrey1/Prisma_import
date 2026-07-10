@@ -1,11 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function CarritoModal({
   mostrarCarrito,
   setMostrarCarrito,
   carrito,
   setCarrito,
+  isOpen
 }) {
+
+  useEffect(() => {
+      if (mostrarCarrito) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+
+      // Función de limpieza por seguridad si se desmonta el componente
+      return () => {
+        document.body.style.overflow = '';
+      };
+  }, [mostrarCarrito]);
+
   // Calculamos el total de forma interna y automática basado en el estado del carrito
   const totalCarrito = carrito.reduce((acc, item) => acc + (item.precioUnitario * item.cantidad), 0);
 

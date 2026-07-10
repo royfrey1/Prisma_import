@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './Datos/supabaseClient';
 import Navbar from './Components/Navbar';
 import Footer from './Components/Footer';
@@ -23,6 +23,9 @@ export default function TiendaZapatillasCompleta() {
 
   // --- ESTADOS DE FILTROS ---
   const [busqueda, setBusqueda] = useState('');
+
+  // Estado para filtrar por marca, talle y sexo
+  const formularioRef = React.useRef(null);
 
   // --- ESTADO FORMULARIO DE CARGA (PANEL DE MELANI) ---
   const [nuevoProducto, setNuevoProducto] = useState({
@@ -386,6 +389,10 @@ export default function TiendaZapatillasCompleta() {
       colores: producto.colores ? producto.colores.join(', ') : '',
       talles: producto.talles || []
     });
+
+    setTimeout(() => {
+      formularioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100); // Un mini delay para asegurar que el cambio de estado no trabe la animación
   };
 
     const handleCancelarEdicion = (e) => {
@@ -414,12 +421,14 @@ export default function TiendaZapatillasCompleta() {
         showConfirmButton: false,
         timer: 1500
       });
+
     };
 
   return (
     <div className="min-h-screen bg-[#FFE8EE] text-slate-800 font-sans antialiased">
       {sesion ? (
         <AdminPage 
+          ref={formularioRef}
           nuevoProducto={nuevoProducto}
           setNuevoProducto={setNuevoProducto}
           listaTallesDisponibles={listaTallesDisponibles}

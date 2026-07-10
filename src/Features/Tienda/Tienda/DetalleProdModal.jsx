@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 
 export default function DetalleProductoModal({ producto, isOpen, onClose, onAgregarAlPedido, onVerCarrito }) {
   // 🌟 EFECTO MEMORIA: Retiene el producto mientras se ejecuta la animación de cierre
   const [prodActivo, setProdActivo] = useState(null);
+  
+  // 🔍 NUEVO ESTADO: Controla el visor de pantalla completa (Lightbox)
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    // Limpieza por si el componente se desmonta inesperadamente
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (producto) {
@@ -15,13 +32,11 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
     }
   }, [producto]);
 
-  // Si no hay producto activo en memoria, no renderizamos nada estructural todavía
   const prod = producto || prodActivo;
 
-  // 🛡️ MANEJO DINÁMICO BLINDADO: Filtra textos vacíos para evitar imágenes rotas ("")
+  // 🛡️ MANEJO DINÁMICO BLINDADO
   const fotosArray = (() => {
     if (!prod) return [];
-    
     let baseArray = [];
     if (Array.isArray(prod.imagenes_urls)) {
       baseArray = prod.imagenes_urls;
@@ -30,8 +45,6 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
     } else if (prod.imagen_url) {
       baseArray = [prod.imagen_url];
     }
-
-    // El filtro clave: elimina cualquier espacio extra, nulos o textos vacíos ""
     return baseArray
       .map(img => (typeof img === 'string' ? img.trim() : ''))
       .filter(img => img !== '');
@@ -44,18 +57,16 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
   const [cantidad, setCantidad] = useState(1);
   const [agregadoExito, setAgregadoExito] = useState(false);
 
-  // Sincronizar foto principal cuando cambia el producto activo o la lista de fotos calculada
   useEffect(() => {
     if (fotosArray.length > 0) {
       setFotoActiva(fotosArray[0]);
     } else {
-      setFotoActiva('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500'); // Fallback por si no tiene fotos
+      setFotoActiva('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500');
     }
   }, [prodActivo, producto, prod?.imagenes_urls, prod?.imagen_url]);
 
   if (!prod) return null;
 
-  // Procesar colores de forma segura
   const listaColores = (() => {
     if (!prod.colores) return [];
     if (Array.isArray(prod.colores)) return prod.colores.map(c => String(c).trim());
@@ -64,253 +75,271 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
   })();
 
   const handleAgregar = () => {
-    if (prod.talles?.length > 0 && !talleSeleccionado) {
-      alert("Por favor, seleccioná un talle antes de agregar.");
-      return;
-    }
+      if (prod.talles?.length > 0 && !talleSeleccionado) {
+        // Alerta estética de advertencia personalizada
+        Swal.fire({
+          title: '<span style="font-family: sans-serif; font-weight: 900;">¡Falta el talle!</span>',
+          html: '<p style="font-size: 14px; color: #64748b; font-weight: 500;">Por favor, seleccioná un talle disponible antes de añadir el calzado al pedido.</p>',
+          icon: 'warning',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#FF0A57', // Color rosa de tu identidad
+          buttonsStyling: true,
+          customClass: {
+            popup: 'rounded-3xl',
+            confirmButton: 'rounded-xl font-bold px-5 py-2.5 text-xs uppercase tracking-wider'
+          }
+        });
+        return;
+      }
 
-    onAgregarAlPedido({
-      ...prod,
-      talleElegido: talleSeleccionado,
-      colorElegido: colorSeleccionado || listaColores[0],
-      cantidadElegida: cantidad,
-      imagenElegida: fotoActiva
-    });
-    
-    setAgregadoExito(true);
+      onAgregarAlPedido({
+        ...prod,
+        talleElegido: talleSeleccionado,
+        colorElegido: colorSeleccionado || listaColores[0],
+        cantidadElegida: cantidad,
+        imagenElegida: fotoActiva
+      });
+      
+      setAgregadoExito(true);
   };
 
   const handleSeguirComprando = () => {
     onClose();
   };
 
+  // Helper para identificar si el archivo activo es un video
+  const esVideo = (url) => {
+    return url && (url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.webm') || url.includes('video'));
+  };
+
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-        isOpen 
-          ? 'opacity-100 pointer-events-auto backdrop-blur-xs' 
-          : 'opacity-0 pointer-events-none'
-      }`}
-    >
-      {/* Fondo oscuro clickeable con desvanecimiento */}
+    <>
+      {/* 1. MODAL PRINCIPAL COMPACTO Y CON SCROLL */}
       <div 
-        className="absolute inset-0 bg-slate-950/50 transition-opacity duration-300" 
-        onClick={handleSeguirComprando}
-      ></div>
-      
-      {/* CONTENEDOR DEL MODAL: Animación desde el centro (Pop-In) */}
-      <div 
-        className={`relative bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-[#FF6696]/20 grid grid-cols-1 md:grid-cols-12 max-h-[90vh] md:max-h-[85vh] transition-all duration-300 ease-out transform ${
-          isOpen ? 'scale-100 opacity-100' : 'scale-80 opacity-0'
+        className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 transition-all duration-300 ${
+          isOpen ? 'opacity-100 pointer-events-auto backdrop-blur-xs' : 'opacity-0 pointer-events-none'
         }`}
       >
+        <div className="absolute inset-0 bg-slate-950/60 transition-opacity duration-300" onClick={handleSeguirComprando}></div>
         
-        {/* BOTÓN CERRAR */}
-        <button 
-          onClick={handleSeguirComprando}
-          className="absolute top-4 right-4 z-10 bg-slate-900 hover:bg-rose-600 text-white p-2.5 rounded-full transition-colors cursor-pointer shadow-md"
+        {/* CONTENEDOR CON CONTROL DE DESBORDAMIENTO (max-h y overflow-y-auto global para mobile) */}
+        <div 
+          className={`relative bg-white w-full max-w-4xl rounded-2xl overflow-y-auto md:overflow-hidden shadow-2xl border border-[#FF6696]/20 grid grid-cols-1 md:grid-cols-12 max-h-[92vh] md:max-h-[85vh] transition-all duration-300 ease-out transform ${
+            isOpen ? 'scale-100 opacity-100' : 'scale-80 opacity-0'
+          }`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L12 12M12 12l6 6M12 12l6-6M12 12L6 6" />
-          </svg>
-        </button>
+          
+          {/* BOTÓN CERRAR GENERAL */}
+          <button 
+            onClick={handleSeguirComprando}
+            className="absolute top-3 right-3 z-20 bg-slate-900/80 hover:bg-rose-600 text-white p-2 rounded-full transition-colors cursor-pointer shadow-md"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L12 12M12 12l6 6M12 12l6-6M12 12L6 6" />
+            </svg>
+          </button>
 
-        {/* COLUMNA IZQUIERDA: GALERÍA DE IMÁGENES */}
-        <div className="md:col-span-6 bg-slate-50 p-6 flex flex-col justify-between items-center border-r border-slate-100">
-          <div className="w-full h-64 md:h-80 bg-white rounded-2xl overflow-hidden shadow-xs flex items-center justify-center relative">
-    
-            {/* 🌟 DETECCIÓN DINÁMICA: ¿Es un video o una imagen? */}
-            {fotoActiva && (fotoActiva.endsWith('.mp4') || fotoActiva.endsWith('.mov') || fotoActiva.endsWith('.webm') || fotoActiva.includes('video')) ? (
-              <video 
-                src={fotoActiva} 
-                controls 
-                muted
-                autoPlay
-                loop
-                className="w-full h-full object-contain p-1"
-              />
-            ) : (
-              <img src={fotoActiva} alt={prod.nombre} className="w-full h-full object-contain p-2" />
-            )}
+          {/* COLUMNA IZQUIERDA: GALERÍA DE IMÁGENES (Reducida en cel) */}
+          <div className="md:col-span-6 bg-slate-50 p-4 sm:p-5 flex flex-col justify-center items-center border-b md:border-b-0 md:border-r border-slate-100">
+            {/* Contenedor de la foto activa, ahora clickeable para Zoom */}
+            <div 
+              onClick={() => setIsZoomOpen(true)}
+              className="w-full h-52 sm:h-64 md:h-80 bg-white rounded-xl overflow-hidden shadow-2xs flex items-center justify-center relative cursor-zoom-in group"
+            >
+              {esVideo(fotoActiva) ? (
+                <video src={fotoActiva} controls muted autoPlay loop className="w-full h-full object-contain p-1" />
+              ) : (
+                <img src={fotoActiva} alt={prod.nombre} className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-102" />
+              )}
 
-            <span className="absolute top-3 left-3 bg-slate-950 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
-              {prod.marca}
-            </span>
-          </div>
+              <span className="absolute top-2 left-2 bg-slate-950 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md">
+                {prod.marca}
+              </span>
 
-          {/* 📸 MINIATURAS VISIBLES SOLO SI HAY MÁS DE UNA FOTO/VIDEO REAL VALIDO */}
-          {fotosArray.length > 1 && (
-            <div className="flex gap-2 mt-4 overflow-x-auto w-full py-1 justify-center">
-              {fotosArray.map((img, index) => {
-                // Detectamos si esta miniatura específica es un video
-                const esMinVideo = img && (
-                  img.toLowerCase().includes('.mp4') || 
-                  img.toLowerCase().includes('.mov') || 
-                  img.toLowerCase().includes('.webm') || 
-                  img.toLowerCase().includes('video')
-                );
+              {/* Indicador visual de que se puede agrandar */}
+              <div className="absolute bottom-2 right-2 bg-slate-950/60 text-white p-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex">
+                <span>🔍</span> Click para pantalla completa
+              </div>
+            </div>
 
-                return (
+            {/* MINIATURAS */}
+            {fotosArray.length > 1 && (
+              <div className="flex gap-1.5 mt-3 overflow-x-auto w-full py-1 justify-center scrollbar-none">
+                {fotosArray.map((img, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => setFotoActiva(img)}
-                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 bg-white p-0.5 transition-all cursor-pointer flex-shrink-0 relative flex items-center justify-center ${
-                      fotoActiva === img ? 'border-[#FF0A57] scale-105 shadow-xs' : 'border-slate-200 opacity-70 hover:opacity-100'
+                    className={`w-11 h-11 rounded-lg overflow-hidden border-2 bg-white p-0.5 transition-all cursor-pointer flex-shrink-0 relative flex items-center justify-center ${
+                      fotoActiva === img ? 'border-[#FF0A57] scale-105' : 'border-slate-200 opacity-70'
                     }`}
                   >
-                    {esMinVideo ? (
-                      <>
-                        {/* Usamos una miniatura compacta de video para previsualizarlo */}
-                        <video src={img} className="w-full h-full object-cover rounded-lg" preload="metadata" muted />
-                        
-                        {/* Icono de Play superpuesto de forma elegante */}
-                        <div className="absolute inset-0 bg-slate-950/30 flex items-center justify-center rounded-lg transition-colors hover:bg-slate-950/10">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white filter drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      </>
+                    {esVideo(img) ? (
+                      <video src={img} className="w-full h-full object-cover rounded-md" preload="metadata" muted />
                     ) : (
-                      /* Si es una imagen común, renderiza el img de siempre */
-                      <img src={img} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <img src={img} alt="" className="w-full h-full object-cover rounded-md" />
                     )}
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* COLUMNA DERECHA: INTERFACES CONMUTABLES */}
-        <div className="md:col-span-6 p-6 md:p-8 flex flex-col justify-between overflow-y-auto min-h-[350px]">
-          
-          {!agregadoExito ? (
-            <>
-              <div>
-                <span className="text-[10px] font-black text-[#FF0A57] uppercase tracking-widest block mb-1">
-                  Calzado {prod.sexo || 'Unisex'}
-                </span>
-                <h2 className="text-2xl font-black text-slate-950 tracking-tight capitalize mb-2">
-                  {prod.nombre}
-                </h2>
-                <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-3xl font-black text-[#FF0A57]">
-                    ${prod.precio_menor?.toLocaleString('es-AR')}
+          {/* COLUMNA DERECHA: INTERFACES CONMUTABLES (Con scroll interno propio en PC) */}
+          <div className="md:col-span-6 p-5 sm:p-6 md:overflow-y-auto flex flex-col justify-between md:max-h-[85vh]">
+            
+            {!agregadoExito ? (
+              <>
+                <div>
+                  <span className="text-[9px] font-black text-[#FF0A57] uppercase tracking-widest block mb-0.5">
+                    Calzado {prod.sexo || 'Unisex'}
                   </span>
-                  <span className="text-xs font-semibold text-slate-400">Precio Final Minorista</span>
-                </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight capitalize mb-1">
+                    {prod.nombre}
+                  </h2>
+                  <div className="flex items-baseline gap-1.5 mb-4">
+                    <span className="text-2xl sm:text-3xl font-black text-[#FF0A57]">
+                      ${prod.precio_menor?.toLocaleString('es-AR')}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">Precio Final Minorista</span>
+                  </div>
 
-                <hr className="border-slate-100 mb-5" />
+                  <hr className="border-slate-100 mb-4" />
 
-                {listaColores.length > 0 && (
-                  <div className="mb-5">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Seleccionar Color:
+                  {/* COLORES */}
+                  {listaColores.length > 0 && (
+                    <div className="mb-4">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                        Seleccionar Color:
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {listaColores.map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setColorSeleccionado(color)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                              colorSeleccionado === color || (!colorSeleccionado && listaColores[0] === color)
+                                ? 'bg-slate-950 text-white border-slate-950'
+                                : 'bg-white text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {color}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TALLES */}
+                  <div className="mb-4">
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      Talles Disponibles:
                     </label>
-                    <div className="flex flex-wrap gap-2">
-                      {listaColores.map(color => (
+                    <div className="flex flex-wrap gap-1.5">
+                      {prod.talles?.map(t => (
                         <button
-                          key={color}
+                          key={t}
                           type="button"
-                          onClick={() => setColorSeleccionado(color)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                            colorSeleccionado === color || (!colorSeleccionado && listaColores[0] === color)
-                              ? 'bg-slate-950 text-white border-slate-950 shadow-xs'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                          onClick={() => setTalleSeleccionado(t)}
+                          className={`w-9 h-9 text-xs font-black rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                            talleSeleccionado === t
+                              ? 'bg-[#FF0A57] text-white border-[#FF0A57] shadow-sm scale-105'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
                           }`}
                         >
-                          {color}
+                          {t}
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                <div className="mb-6">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    Talles Disponibles:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {prod.talles?.map(t => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTalleSeleccionado(t)}
-                        className={`w-10 h-10 text-xs font-black rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
-                          talleSeleccionado === t
-                            ? 'bg-[#FF0A57] text-white border-[#FF0A57] shadow-md scale-105'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                  {/* CANTIDAD */}
+                  <div className="mb-5">
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      Cantidad:
+                    </label>
+                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl w-fit p-1">
+                      <button type="button" onClick={() => setCantidad(prev => Math.max(1, prev - 1))} className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">-</button>
+                      <span className="text-xs font-black px-1.5 text-slate-900 w-5 text-center">{cantidad}</span>
+                      <button type="button" onClick={() => setCantidad(prev => prev + 1)} className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">+</button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    Cantidad:
-                  </label>
-                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl w-fit p-1">
-                    <button type="button" onClick={() => setCantidad(prev => Math.max(1, prev - 1))} className="w-8 h-8 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">-</button>
-                    <span className="text-xs font-black px-2 text-slate-900 w-6 text-center">{cantidad}</span>
-                    <button type="button" onClick={() => setCantidad(prev => prev + 1)} className="w-8 h-8 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">+</button>
-                  </div>
+                {/* BOTÓN DE ACCIÓN */}
+                <div className="pt-3 border-t border-slate-100 mt-auto">
+                  <button
+                    type="button"
+                    onClick={handleAgregar}
+                    className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[11px] transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    🛍️ Agregar Al Pedido ({cantidad})
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* PANTALLA ÉXITO */
+              <div className="flex flex-col justify-center items-center text-center py-6 my-auto">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 shadow-2xs border border-emerald-200 animate-bounce">
+                  ✓
+                </div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight mb-1">
+                  ¡Agregado al carrito!
+                </h3>
+                <p className="text-[11px] font-medium text-slate-500 max-w-xs mb-6">
+                  Sumaste <span className="font-bold text-slate-800">{cantidad}x {prod.nombre}</span> (Talle {talleSeleccionado}) a tu orden.
+                </p>
+
+                <div className="w-full flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => { handleSeguirComprando(); if (onVerCarrito) onVerCarrito(); }}
+                    className="w-full bg-slate-950 text-white font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    🛒 Ver mi carrito / Completar Pedido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSeguirComprando}
+                    className="w-full bg-slate-100 text-slate-700 font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] border border-slate-200 cursor-pointer"
+                  >
+                    👀 Seguir mirando
+                  </button>
                 </div>
               </div>
+            )}
 
-              <div className="pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleAgregar}
-                  className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs transition-all cursor-pointer shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  🛍️ Agregar Al Pedido ({cantidad})
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col justify-center items-center text-center h-full my-auto py-8">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mb-4 shadow-xs border border-emerald-200 animate-bounce">
-                ✓
-              </div>
-              
-              <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">
-                ¡Agregado al carrito!
-              </h3>
-              
-              <p className="text-xs font-medium text-slate-500 max-w-xs mb-8 leading-relaxed">
-                Sumaste <span className="font-bold text-slate-800">{cantidad}x {prod.nombre}</span> (Talle {talleSeleccionado}) a tu orden actual.
-              </p>
-
-              <div className="w-full flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSeguirComprando();
-                    if (onVerCarrito) onVerCarrito();
-                  }}
-                  className="w-full bg-slate-950 hover:bg-slate-900 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
-                >
-                  🛒 Ver mi carrito / Completar Pedido
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSeguirComprando}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-2xl uppercase tracking-widest text-xs transition-all cursor-pointer border border-slate-200"
-                >
-                  👀 Seguir mirando productos
-                </button>
-              </div>
-            </div>
-          )}
-
+          </div>
         </div>
-
       </div>
-    </div>
+
+      {/* 2. MODAL LIGHTBOX NUEVO: SE ENCIENDE SOLO AL HACER CLICK EN LA FOTO PRINCIPAL */}
+      {isZoomOpen && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-2 sm:p-4 animate-fade-in"
+          onClick={() => setIsZoomOpen(false)}
+        >
+          {/* Botón de cierre superior del zoom */}
+          <button 
+            className="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full transition-colors cursor-pointer"
+            onClick={() => setIsZoomOpen(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L12 12M12 12l6 6M12 12l6-6M12 12L6 6" />
+            </svg>
+          </button>
+
+          {/* Renderizado dinámico full-screen */}
+          <div className="max-w-full max-h-full flex items-center justify-center p-2" onClick={(e) => e.stopPropagation()}>
+            {esVideo(fotoActiva) ? (
+              <video src={fotoActiva} controls autoPlay className="max-w-full max-h-[92vh] object-contain rounded-lg" />
+            ) : (
+              <img src={fotoActiva} alt={prod.nombre} className="max-w-full max-h-[92vh] object-contain rounded-lg select-none" />
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

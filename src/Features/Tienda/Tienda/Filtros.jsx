@@ -12,7 +12,7 @@ export default function Filtros({
   setBusqueda
 }) {
   return (
-    <section className="bg-white border-b border-slate-200 py-3 px-4 shadow-2xs">
+    <section id="catalogo" className="scroll-mt-19 bg-white border-b border-slate-200 py-6 px-4 shadow-2xs">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-4 text-xs font-bold text-slate-600">
         <span className="text-slate-400 uppercase tracking-wider text-[10px]">Filtrar por:</span>
         

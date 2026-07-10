@@ -10,54 +10,53 @@ export default function Navbar({
   
 
   return (
-    <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <nav className="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         
-        {/* Branding e indicador */}
-        <div className="flex justify-between items-center">
+        {/* Fila superior en móvil / Bloque Izquierdo en Desktop */}
+        <div className="flex justify-between items-center w-full md:w-auto">
           <div>
             <span className="text-xl font-black tracking-tighter text-[#FF6696]/50">
               PRISMA<span className="text-[#FF6696]">_IMPORT</span>
             </span>
-            <span className="text-[9px] block font-bold text-[#D892A8] tracking-wider uppercase">
+            <span className="text-[9px] block font-bold text-[#D892A8] tracking-wider uppercase -mt-0.5">
               Mayor & Menor
             </span>
           </div>
           
-          {/* Botón Carrito Móvil */}
+          {/* Botón Carrito Móvil (Se muestra solo en celulares) */}
           <button 
             onClick={() => setMostrarCarrito(true)} 
-            className="md:hidden relative bg-[#FF0A57]/70 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer"
+            className="md:hidden bg-[#FF0A57] text-white px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-sm"
           >
             🛒 Carrito ({totalItems})
           </button>
         </div>
 
-
-        {/* Panel de Melani y Carrito de Escritorio */}
-        <div className="flex items-center justify-between md:justify-end gap-4">
+        {/* Fila inferior en móvil / Bloque Derecho en Desktop */}
+        <div className="w-full md:w-auto flex items-center justify-end gap-3 border-t border-slate-50 pt-1 md:pt-0 md:border-t-0">
 
           {/* Botón dinámico para el Panel de Melani */}
           {sesion ? (
-            <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
+            <div className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-xl md:rounded-full">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] font-black tracking-wider uppercase text-slate-700 font-mono">
+              <span className="text-[10px] font-black tracking-wider uppercase text-emerald-700 font-mono">
                 Modo Administrador Activo
               </span>
             </div>
           ) : (
             <button
               onClick={() => setMostrarLogin(true)}
-              className="sm:flex items-center gap-1.5 border border-slate-200 hover:border-[#FF6696] text-slate-600 hover:text-[#FF6696] font-bold text-[11px] uppercase tracking-wider px-4 py-2 rounded-full transition-all cursor-pointer bg-white shadow-xs"
+              className="w-full md:w-auto flex items-center justify-center gap-1.5 border border-slate-200 hover:border-[#FF6696] text-slate-500 hover:text-[#FF6696] font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl md:rounded-full transition-all cursor-pointer bg-white shadow-xs"
             >
               ⚙️ Ingreso Gestión
             </button>
           )}
 
-          {/* Botón Carrito Escritorio */}
+          {/* Botón Carrito Escritorio (Se oculta en celulares) */}
           <button 
             onClick={() => setMostrarCarrito(true)} 
-            className="hidden md:flex relative bg-[#FF0A57]/70 text-white px-5 py-2 rounded-xl text-xs font-bold items-center gap-2 hover:bg-[#FF0A57] transition-all cursor-pointer"
+            className="hidden md:flex relative bg-[#FF0A57]/90 text-white px-5 py-2 rounded-xl text-xs font-black items-center gap-2 hover:bg-[#FF0A57] transition-all cursor-pointer shadow-xs"
           >
             🛒 Mi Carrito
             {totalItems > 0 && (

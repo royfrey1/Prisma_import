@@ -1,4 +1,5 @@
 import React from 'react';
+import GrillaProductos from './GrillaProductos';
 
 export default function Hero() {
   // Frases que se repetirán de corrido en la marquesina
