@@ -40,14 +40,14 @@ export default function TiendaZapatillasCompleta() {
   });
 
   // Talles disponibles que Melani podrá tildar en su panel
-  const listaTallesDisponibles = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44];
+  const listaTallesDisponibles = [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44];
 
   // --- TRAER PRODUCTOS DE SUPABASE (PRODUCCIÓN) ---
   const obtenerProductosSupabase = async () => {
     try {
       const { data, error } = await supabase
         .from('zapatillas')
-        .select('*')
+        .select('*, stock_variantes(*)') // Trae también la relación de stock_variantes
         .order('id', { ascending: false }); // Trae los últimos cargados primero
 
       if (error) throw error;
@@ -152,15 +152,36 @@ export default function TiendaZapatillasCompleta() {
     });
   };
 
-  // --- LÓGICA DEL CARRITO ---
+  // --- LÓGICA DEL CARRITO (CORREGIDA) ---
   const agregarAlCarrito = (producto) => {
     const precioActual = tipoVenta === 'menor' ? producto.precio_menor : producto.precio_mayor;
-    const existe = carrito.find(item => item.id === producto.id);
+    
+    // 1. Buscamos si ya existe el mismo modelo con el MISMO TALLE y MISMO COLOR
+    const existe = carrito.find(item => 
+      item.id === producto.id && 
+      item.talleElegido === producto.talleElegido &&
+      item.colorElegido === producto.colorElegido
+    );
     
     if (existe) {
-      setCarrito(carrito.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item));
+      // 🛠️ Sumamos la cantidad elegida que viene del modal, no un +1 fijo
+      setCarrito(carrito.map(item => 
+        item.id === producto.id && 
+        item.talleElegido === producto.talleElegido &&
+        item.colorElegido === producto.colorElegido
+          ? { ...item, cantidad: item.cantidad + (producto.cantidadElegida || 1) } 
+          : item
+      ));
     } else {
-      setCarrito([...carrito, { ...producto, cantidad: 1, precioUnitario: precioActual }]);
+      // 🛠️ Respetamos la cantidad elegida inicial del modal en lugar de clavar un 1
+      setCarrito([
+        ...carrito, 
+        { 
+          ...producto, 
+          cantidad: producto.cantidadElegida || 1, 
+          precioUnitario: precioActual 
+        }
+      ]);
     }
   };
 
@@ -258,6 +279,9 @@ export default function TiendaZapatillasCompleta() {
         ? listaUrlsFinales[0] 
         : (nuevoProducto.imagen_url || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500');
 
+      // Definimos la lista de talles a guardar en la tabla 'zapatillas'
+      const tallesAsignados = nuevoProducto.talles && nuevoProducto.talles.length > 0 ? nuevoProducto.talles : [40];
+
       // 🌟 2. ARMAR EL OBJETO PARA SUPABASE CON LAS DOS COLUMNAS DE IMÁGENES
       const datosProducto = {
         nombre: nuevoProducto.nombre,
@@ -267,26 +291,47 @@ export default function TiendaZapatillasCompleta() {
         precio_mayor: parseFloat(nuevoProducto.precio_mayor) || 0,
         imagen_url: portadaPrincipal, // Tu columna clásica (Portada en Grilla)
         imagenes_urls: listaUrlsFinales, // Tu array de galería (Fotos + Videos)
-        talles: nuevoProducto.talles && nuevoProducto.talles.length > 0 ? nuevoProducto.talles : [40],
+        talles: tallesAsignados, // Tu array de texto viejo
         colores: arrayColores.length > 0 ? arrayColores : ['Multicolor']
       };
 
-      let error;
-
       if (nuevoProducto.id) {
-        const resultado = await supabase
+        // CASO EDICIÓN: Actualizamos la zapatilla
+        const { error: errorUpdate } = await supabase
           .from('zapatillas')
           .update(datosProducto)
           .eq('id', nuevoProducto.id);
-        error = resultado.error;
+          
+        if (errorUpdate) throw errorUpdate;
       } else {
-        const resultado = await supabase
+        // CASO NUEVO: Insertamos la zapatilla agregando el .select() para capturar su ID autogenerado
+        const { data: productoCreado, error: errorInsert } = await supabase
           .from('zapatillas')
-          .insert([datosProducto]);
-        error = resultado.error;
-      }
+          .insert([datosProducto])
+          .select(); // 👈 Clave para recuperar el registro completo con su ID real
 
-      if (error) throw error;
+        if (errorInsert) throw errorInsert;
+
+        // 🌟 AUTOMATIZACIÓN DE STOCK: Insertamos masivamente en 'stock_variantes'
+        if (productoCreado && productoCreado.length > 0) {
+          const idZapatillaNueva = productoCreado[0].id;
+
+          // Creamos el array de filas listo para mandar a la tabla secundaria
+          const filasStockInicial = tallesAsignados.map(talle => ({
+            producto_id: idZapatillaNueva,
+            talle: talle,
+            cantidad: 1 // 👟 Cambialo a 0 si preferís que arranquen sin stock
+          }));
+
+          const { error: errorStock } = await supabase
+            .from('stock_variantes')
+            .insert(filasStockInicial);
+
+          if (errorStock) {
+            console.error("Aviso: Se creó el producto pero falló la inicialización de talles:", errorStock.message);
+          }
+        }
+      }
 
       // Alerta de éxito definitiva reemplazando el loading
       Swal.fire({
@@ -294,7 +339,7 @@ export default function TiendaZapatillasCompleta() {
         title: nuevoProducto.id ? '¡Cambios guardados!' : '¡Sincronizado!',
         text: nuevoProducto.id 
           ? `"${nuevoProducto.nombre}" se actualizó correctamente con sus imágenes.`
-          : `"${nuevoProducto.nombre}" ya está publicado con su galería de fotos.`,
+          : `"${nuevoProducto.nombre}" ya está publicado y sus talles se vincularon al stock real.`,
         confirmButtonColor: '#FF6696',
         customClass: { popup: 'rounded-2xl' }
       });

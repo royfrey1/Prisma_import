@@ -8,6 +8,7 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
   // 🔍 NUEVO ESTADO: Controla el visor de pantalla completa (Lightbox)
   const [isZoomOpen, setIsZoomOpen] = useState(false);
 
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -57,13 +58,16 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
   const [cantidad, setCantidad] = useState(1);
   const [agregadoExito, setAgregadoExito] = useState(false);
 
+  // 📸 CORRECCIÓN: Inicializa la foto activa respetando estrictamente la portada real del producto
   useEffect(() => {
-    if (fotosArray.length > 0) {
+    if (prod?.imagen_url) {
+      setFotoActiva(prod.imagen_url);
+    } else if (fotosArray.length > 0) {
       setFotoActiva(fotosArray[0]);
     } else {
       setFotoActiva('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500');
     }
-  }, [prodActivo, producto, prod?.imagenes_urls, prod?.imagen_url]);
+  }, [prod?.id, prod?.imagen_url, prod?.imagenes_urls]);
 
   if (!prod) return null;
 
@@ -112,6 +116,33 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
     return url && (url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.webm') || url.includes('video'));
   };
 
+
+  console.log("=== DEBUG STOCK ===");
+  console.log("Producto completo:", prod);
+  console.log("Array de variantes:", prod?.stock_variantes);
+  console.log("Talle seleccionado por el usuario:", talleSeleccionado, typeof talleSeleccionado);
+
+
+  const stockDisponible = (() => {
+    // 1. Si por alguna razón hay variantes, las buscamos primero
+    if (prod.stock_variantes && prod.stock_variantes.length > 0) {
+      const variante = prod.stock_variantes.find(
+        v => String(v.talle).trim() === String(talleSeleccionado).trim()
+      );
+      if (variante) return variante.cantidad || 0;
+    }
+
+    // 2. ESCUDO SEGURO: Como 'stock_variantes' llegó vacío (Array(0)),
+    // chequeamos si el talle existe en el array plano de talles del producto.
+    const existeTalle = prod.talles?.some(t => String(t).trim() === String(talleSeleccionado).trim() || String(t).trim() === String(talleSeleccionado).trim());
+    
+    // Si el talle existe, le ponemos un tope lógico por compra (ej: 5 pares) 
+    // para que deje sumar en el modal y no tire el cartel de 0.
+    if (existeTalle) return 5; 
+
+    return 0;
+  })();
+  
   return (
     <>
       {/* 1. MODAL PRINCIPAL COMPACTO Y CON SCROLL */}
@@ -255,15 +286,35 @@ export default function DetalleProductoModal({ producto, isOpen, onClose, onAgre
                   </div>
 
                   {/* CANTIDAD */}
-                  <div className="mb-5">
-                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
-                      Cantidad:
-                    </label>
-                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl w-fit p-1">
-                      <button type="button" onClick={() => setCantidad(prev => Math.max(1, prev - 1))} className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">-</button>
-                      <span className="text-xs font-black px-1.5 text-slate-900 w-5 text-center">{cantidad}</span>
-                      <button type="button" onClick={() => setCantidad(prev => prev + 1)} className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer">+</button>
-                    </div>
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl w-fit p-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setCantidad(prev => Math.max(1, prev - 1))} 
+                      className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer"
+                    >
+                      -
+                    </button>
+                    
+                    <span className="text-xs font-black px-1.5 text-slate-900 w-5 text-center">{cantidad}</span>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        if (talleSeleccionado && cantidad >= stockDisponible) {
+                          Swal.fire({
+                            title: 'Stock Máximo',
+                            text: `Lo sentimos, solo quedan ${stockDisponible} unidades disponibles en talle ${talleSeleccionado}.`,
+                            icon: 'info',
+                            confirmButtonColor: '#FF0A57'
+                          });
+                          return;
+                        }
+                        setCantidad(prev => prev + 1);
+                      }} 
+                      className="w-7 h-7 font-black text-slate-600 hover:bg-white rounded-lg cursor-pointer"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
 

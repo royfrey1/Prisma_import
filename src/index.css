@@ -1,14 +1,32 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda+SC:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cinzel:wght@400..900&family=Comic+Neue:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chewy&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Protest+Riot&display=swap');
 
 html {
   scroll-behavior: smooth;
 }
 
 @theme {
-  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee: marquee 60s linear infinite;
 
   @keyframes marquee {
     from { transform: translateX(0%); }
     to { transform: translateX(-50%); }
   }
+}
+
+@theme {
+  /* Si usás Tailwind v4, podés extender las familias acá de forma nativa */
+  --font-bodoni: 'Bodoni Moda SC', serif;
+  --font-cinzel: 'Cinzel', serif;
+  --font-comic: 'Comic Neue', cursive;
+}
+
+@theme {
+  --font-chewy: 'Chewy', system-ui;
+}
+
+@theme {
+  --font-protest: 'Protest Riot', sans-serif;
 }

@@ -7,7 +7,7 @@ export default function Footer() {
       
       {/* ─── MARQUESINA DE CIERRE EN EL INICIO DEL FOOTER ─── */}
       <div className="w-full bg-[#FF0A57] py-2 border-b border-slate-800 flex overflow-x-hidden select-none">
-        <div className="flex whitespace-nowrap animate-marquee font-black text-[11px] md:text-xs uppercase tracking-widest text-white">
+        <div className="flex whitespace-nowrap animate-marquee font-cinzel text-[11px] md:text-xs uppercase tracking-widest text-white">
           {/* Duplicamos el string para garantizar continuidad infinita en pantallas anchas */}
           <span>{textoMarquesina}{textoMarquesina}{textoMarquesina}</span>
           <span>{textoMarquesina}{textoMarquesina}{textoMarquesina}</span>
@@ -34,8 +34,16 @@ export default function Footer() {
 
         {/* Lado Derecho: Créditos de la Red */}
         <div className="flex flex-col md:items-end gap-1.5 border-t border-slate-800 pt-6 md:border-t-0 md:pt-0">
-          <p className="text-[11px] font-medium">
-            &copy; {new Date().getFullYear()} Todos los derechos reservados. Desarrollado por Roy Frey
+          <p className="text-sm font-medium">
+            &copy; {new Date().getFullYear()} Todos los derechos reservados. Desarrollado por 
+            <a 
+              href="https://portfolio-royf.vercel.app/"
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="font-chewy text-[#FF6696] hover:underline transition-all duration-300 ml-1"
+            >
+              Roy Frey
+            </a>
           </p>
         </div>
         

@@ -21,20 +21,33 @@ export default function TiendaPage({
   const [filtroMarca, setFiltroMarca] = useState('Todos');
   const [filtroTalle, setFiltroTalle] = useState('Todos');
   const [filtroSexo, setFiltroSexo] = useState('Todos');
+  const [ordenPrecio, setOrdenPrecio] = useState('Destacados');
 
   // 2. Generar de forma dinámica la lista de talles disponibles basados en el stock real
   const listaTallesDisponibles = [...new Set(productos.flatMap(p => p.talles || []))].sort((a, b) => a - b);
 
-  // 3. Lógica de filtrado en tiempo real (Corregida con String() para evitar bugs de tipos)
-  const productosFiltrados = productos.filter(prod => {
-    const coincideBusqueda = prod.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-                            prod.marca.toLowerCase().includes(busqueda.toLowerCase());
-    const coincideMarca = filtroMarca === 'Todos' || prod.marca === filtroMarca;
-    const coincideTalle = filtroTalle === 'Todos' || prod.talles?.some(t => String(t) === String(filtroTalle));
-    const coincideSexo = filtroSexo === 'Todos' || prod.sexo === filtroSexo;
-    
-    return coincideBusqueda && coincideMarca && coincideTalle && coincideSexo;
-  });
+  // 3. Lógica de filtrado en tiempo real y ORDENAMIENTO combinados
+  const productosFiltradosYOrdenados = productos
+    .filter(prod => {
+      const coincideBusqueda = prod.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                              prod.marca.toLowerCase().includes(busqueda.toLowerCase());
+      const coincideMarca = filtroMarca === 'Todos' || prod.marca === filtroMarca;
+      const coincideTalle = filtroTalle === 'Todos' || prod.talles?.some(t => String(t) === String(filtroTalle));
+      const coincideSexo = filtroSexo === 'Todos' || prod.sexo === filtroSexo;
+      
+      return coincideBusqueda && coincideMarca && coincideTalle && coincideSexo;
+    })
+    // 🌟 LOGICA DE ORDENAMIENTO CORREGIDA (Cambiamos 'precio' por 'precio_menor')
+    .sort((a, b) => {
+      if (ordenPrecio === 'MenorMayor') {
+        return Number(a.precio_menor) - Number(b.precio_menor);
+      }
+      if (ordenPrecio === 'MayorMenor') {
+        return Number(b.precio_menor) - Number(a.precio_menor);
+      }
+      return 0; // Si es 'Destacados', los deja en el orden original
+    });
+
 
   return (
     <>
@@ -45,7 +58,7 @@ export default function TiendaPage({
       <section className="bg-white border-t border-b border-slate-200/60 py-12 px-4 mt-16 shadow-2xs">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-xl mx-auto mb-10">
-            <h2 className="text-sm font-black tracking-widest text-[#FF6696] uppercase mb-2">Información Importante</h2>
+            <h2 className="text-sm font-chewy tracking-widest text-[#FF6696] uppercase mb-2">Información Importante</h2>
             <p className="text-slate-500 font-bold text-xs">Todo lo que necesitás saber antes de coordinar tu pedido con nosotros.</p>
           </div>
 
@@ -53,7 +66,7 @@ export default function TiendaPage({
             <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
               <span className="text-2xl">📍</span>
               <div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1">Envíos Locales y Nacionales</h3>
+                <h3 className="font-chewy text-slate-900 text-sm mb-1">Envíos Locales y Nacionales</h3>
                 <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
                   Hacemos entregas directas y envíos a todo el país. Coordinamos el método que te sea más cómodo al momento de confirmar el pedido por WhatsApp.
                 </p>
@@ -64,7 +77,7 @@ export default function TiendaPage({
             <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
               <span className="text-2xl">🛍️</span>
               <div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1">Compra Minorista Directa</h3>
+                <h3 className="font-chewy text-slate-900 text-sm mb-1">Compra Minorista Directa</h3>
                 <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
                   No exigimos mínimos de compra. Llevate el par que más te guste eligiendo libremente entre los talles y colores que registramos con stock en tiempo real.
                 </p>
@@ -74,7 +87,7 @@ export default function TiendaPage({
             <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
               <span className="text-2xl">⚡</span>
               <div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1">Atención Inmediata</h3>
+                <h3 className="font-chewy text-slate-900 text-sm mb-1">Atención Inmediata</h3>
                 <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
                   Una vez enviado tu carrito, nos pondremos en contacto para validar la curva de talles, disponibilidad de colores y acordar el método de pago.
                 </p>
@@ -95,24 +108,26 @@ export default function TiendaPage({
         listaTallesDisponibles={listaTallesDisponibles}
         busqueda={busqueda}
         setBusqueda={setBusqueda}
+        ordenPrecio={ordenPrecio}      
+        setOrdenPrecio={setOrdenPrecio}
       />
 
-      {/* GRILLA DE PRODUCTOS INTEGRADA (Agregamos la prop onVerDetalle) */}
+      {/* GRILLA DE PRODUCTOS INTEGRADA */}
       <GrillaProductos 
-        productosFiltrados={productosFiltrados}
+        productosFiltrados={productosFiltradosYOrdenados} // 👈 Pasamos el array filtrado Y ordenado
         tipoVenta={tipoVenta}
         agregarAlCarrito={agregarAlCarrito}
-        onVerDetalle={(prod) => setProductoSeleccionado(prod)} // 👈 Enviamos la función selectora hacia abajo
+        onVerDetalle={(prod) => setProductoSeleccionado(prod)} 
       />
 
       {/* RENDERIZADO CONDICIONAL DEL MODAL DE DETALLE PREMIUM */}
-        <DetalleProductoModal 
-          isOpen={!!productoSeleccionado} // 👈 Le avisamos al modal que tiene que mostrarse
-          producto={productoSeleccionado}
-          onClose={() => setProductoSeleccionado(null)} // 👈 Conectamos el botón de cerrar
-          onAgregarAlPedido={agregarAlCarrito} // 👈 Conectamos la acción del carrito
-          onVerCarrito={() => setMostrarCarrito(true)}
-        />
+      <DetalleProductoModal 
+        isOpen={!!productoSeleccionado} 
+        producto={productoSeleccionado}
+        onClose={() => setProductoSeleccionado(null)} 
+        onAgregarAlPedido={agregarAlCarrito} 
+        onVerCarrito={() => setMostrarCarrito(true)}
+      />
     </>
   );
 }

@@ -1,80 +1,152 @@
-import React, { useState, useRef, forwardRef } from 'react';
+import React, { useState, forwardRef } from 'react';
 import Swal from 'sweetalert2';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { supabase } from '../../../Datos/supabaseClient'; 
 
 const AdminPage = forwardRef((props, ref) => {
-
   const {
-  nuevoProducto,
-  setNuevoProducto,
-  listaTallesDisponibles,
-  handleTalleSeleccionado,
-  handleSubirImagen,
-  handleGuardarProductoMelani,
-  handleCerrarSesion,
-  productos,                // Pasar la lista completa desde App.jsx
-  handleEliminarProducto,   // Nueva función recomendada en App.jsx
-  handleCargarEdicion,       // Nueva función recomendada en App.jsx
-  obtenerProductosSupabase,
-  handleCancelarEdicion
+    nuevoProducto,
+    setNuevoProducto,
+    listaTallesDisponibles,
+    handleTalleSeleccionado,
+    handleGuardarProductoMelani,
+    handleCerrarSesion,
+    productos,           
+    handleEliminarProducto,   
+    handleCargarEdicion,      
+    obtenerProductosSupabase,
+    handleCancelarEdicion
   } = props;
 
- // 🌟 ESTADOS NUEVOS: Soportan múltiples imágenes locales antes de subirse
   const [archivosSeleccionados, setArchivosSeleccionados] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  
+  // 🌟 ESTADO NUEVO: Guarda qué producto tiene abierto el desplegable de gestión de stock
+  const [productoStockAbierto, setProductoStockAbierto] = useState(null);
+  const [cargandoStock, setCargandoStock] = useState(false);
 
+  // 🌟 FUNCIÓN NUEVA: Modifica la cantidad de un talle existente (+1 / -1)
+  const handleModificarCantidadStock = async (varianteId, cantidadActual, operacion) => {
+    if (cargandoStock) return;
+    const nuevaCantidad = operacion === 'sumar' ? cantidadActual + 1 : cantidadActual - 1;
+    
+    if (nuevaCantidad < 0) return; // Protección contra negativos
+
+    setCargandoStock(true);
+    try {
+      const { error } = await supabase
+        .from('stock_variantes')
+        .update({ cantidad: nuevaCantidad })
+        .eq('id', varianteId);
+
+      if (error) throw error;
+      
+      // Recargamos el listado global para actualizar la UI en vivo
+      await obtenerProductosSupabase();
+    } catch (err) {
+      console.error("Error al actualizar stock:", err);
+      Swal.fire('Error', 'No se pudo actualizar el stock.', 'error');
+    } finally {
+      setCargandoStock(false);
+    }
+  };
+
+  // 🌟 FUNCIÓN CORREGIDA: Crea el talle o lo reactiva con stock si ya existía
+  const handleCrearNuevaVarianteTalle = async (productoId, talle) => {
+    if (!talle) return;
+    setCargandoStock(true);
+    try {
+      // 1. Intentamos insertar el talle de forma normal
+      const { error } = await supabase
+        .from('stock_variantes')
+        .insert([{ producto_id: productoId, talle: talle, cantidad: 1 }]);
+
+      if (error) {
+        // 🛠️ CAPTURA DE DUPLICADO: Si ya existe en Supabase (Unique Constraint activo)
+        if (error.code === '23505') {
+          
+          // 2. En vez de dar error, le hacemos un UPDATE asignándole 1 unidad (ya que estaba en 0 u oculto)
+          const { error: updateError } = await supabase
+            .from('stock_variantes')
+            .update({ cantidad: 1 })
+            .eq('producto_id', productoId)
+            .eq('talle', talle);
+
+          if (updateError) throw updateError;
+          
+          // Avisamos con un mensaje amigable de que se reactivó con éxito
+          Swal.fire({
+            icon: 'success',
+            title: 'Talle actualizado',
+            text: `El talle ${talle} ya existía y se restableció a 1 unidad.`,
+            timer: 1500,
+            showConfirmButton: false
+          });
+          
+          await obtenerProductosSupabase();
+          return;
+        }
+        throw error;
+      }
+
+      // Si el insert salió bien de primera (talle nuevo real)
+      Swal.fire({
+        icon: 'success',
+        title: 'Talle añadido',
+        text: `Se agregó el talle ${talle} con 1 unidad.`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+      await obtenerProductosSupabase();
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'No se pudo añadir o actualizar el talle.', 'error');
+    } finally {
+      setCargandoStock(false);
+    }
+  };
 
   const alCambiarArchivoMúltiple = (e) => {
     const archivos = Array.from(e.target.files);
     if (archivos.length === 0) return;
 
-    // Guardamos los archivos físicos en el estado para subirlos después
     setArchivosSeleccionados(prev => [...prev, ...archivos]);
 
-    // Generamos las URLs de previsualización para el diseño
     const nuevasPreviews = archivos.map(archivo => ({
       url: URL.createObjectURL(archivo),
       esVideo: archivo.type.includes('video')
     }));
 
     setPreviewUrls(prev => [...prev, ...nuevasPreviews]);
-    
-    // 💡 NOTA: Quitamos la subida automática inmediata "handleSubirImagen" 
-    // para subir todas juntas cuando se presione "Publicar Producto" o "Guardar Cambios".
   };
 
-  // Función opcional por si la administradora quiere remover una foto de la lista antes de guardar
   const eliminarFotoDePreview = (indexAEliminar) => {
     setArchivosSeleccionados(prev => prev.filter((_, i) => i !== indexAEliminar));
     setPreviewUrls(prev => prev.filter((_, i) => i !== indexAEliminar));
   };
 
-
   const alEnviarFormulario = async (e) => {
     e.preventDefault();
 
-    // 🌟 VALIDACIÓN: Verificamos si hay archivos seleccionados nuevos
     if (archivosSeleccionados.length > 0) {
       const primerArchivo = archivosSeleccionados[0];
       const esVideo = primerArchivo.type.includes('video') || 
                       primerArchivo.name.toLowerCase().endsWith('.mp4') || 
-                      primerArchivo.name.toLowerCase().endsWith('.mov') || 
-                      primerArchivo.name.toLowerCase().endsWith('.webm');
+                      primerArchivo.name.toLowerCase().endsWith('.mov');
 
-      // Si el primer elemento es un video, frenamos a Melani con un aviso
       if (esVideo) {
         Swal.fire({
           icon: 'warning',
           title: 'Foto de portada requerida',
-          text: 'Por favor, selecciona una foto como primer archivo para que actúe como portada en la tienda, y luego incluye los videos que quieras.',
+          text: 'Por favor, selecciona una foto como primer archivo para que actúe como portada en la tienda.',
           confirmButtonColor: '#FF6696',
           customClass: { popup: 'rounded-2xl' }
         });
-        return; // Bloquea el envío
+        return;
       }
     }
 
-    // Si todo está ok (o si no se cambiaron fotos al editar), ejecutamos el guardado definitivo
-    // Pasamos los estados locales y sus modificadores para que la función limpie todo al terminar con éxito
     await handleGuardarProductoMelani(
       e, 
       archivosSeleccionados, 
@@ -82,7 +154,6 @@ const AdminPage = forwardRef((props, ref) => {
       setPreviewUrls
     );
   };
-
 
   return (
     <div className="min-h-screen bg-[#FFE8EE] text-slate-800 font-sans p-4 sm:p-6 md:p-8">
@@ -112,8 +183,6 @@ const AdminPage = forwardRef((props, ref) => {
           </h2>
 
           <form onSubmit={alEnviarFormulario} className="space-y-5">
-            
-            {/* Input Nombre */}
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Nombre del Modelo</label>
               <input 
@@ -124,7 +193,6 @@ const AdminPage = forwardRef((props, ref) => {
               />
             </div>
 
-            {/* Fila Marca e Importe */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Marca</label>
@@ -137,9 +205,12 @@ const AdminPage = forwardRef((props, ref) => {
                   <option value="Nike">Nike</option>
                   <option value="Adidas">Adidas</option>
                   <option value="Vans">Vans</option>
+                  <option value="Puma">Puma</option>
+                  <option value="Reebok">Reebok</option>
+                  <option value="New Balance">New Balance</option>
+                  <option value="Converse">Converse</option>
                 </select>
               </div>
-              {/* Selector de Género */}
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Género</label>
                 <select 
@@ -154,7 +225,6 @@ const AdminPage = forwardRef((props, ref) => {
               </div>
             </div>
 
-            {/* Precios */}
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Precio ($)</label>
               <input 
@@ -165,7 +235,6 @@ const AdminPage = forwardRef((props, ref) => {
               />
             </div>
 
-            {/* Colores */}
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Colores (Separados por coma)</label>
               <input 
@@ -176,7 +245,6 @@ const AdminPage = forwardRef((props, ref) => {
               />
             </div>
 
-            {/* SELECCIÓN DE TALLES OPTIMIZADA (Grilla perfecta en mobile) */}
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">Curva de Talles en Stock</label>
               <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap">
@@ -185,7 +253,7 @@ const AdminPage = forwardRef((props, ref) => {
                     key={t} type="button"
                     onClick={() => handleTalleSeleccionado(t)}
                     className={`py-2 sm:px-2.5 sm:py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      nuevoProducto.talles.includes(t)
+                      nuevoProducto.talles?.includes(t)
                         ? 'bg-[#FF6696] text-white border-[#FF6696] shadow-xs'
                         : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                     }`}
@@ -196,81 +264,36 @@ const AdminPage = forwardRef((props, ref) => {
               </div>
             </div>
 
-            {/* SUBIDA DE MULTIMEDIA MULTIPLE */}
             <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-                Fotos y Videos del Producto
-              </label>
-              
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">Fotos y Videos</label>
               <input
-                type="file"
-                multiple
-                accept="image/*,video/*"
+                type="file" multiple accept="image/*,video/*"
                 onChange={alCambiarArchivoMúltiple}
-                className="block w-full text-xs text-slate-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-xs file:font-bold
-                  file:bg-[#FF6696]/10 file:text-[#FF6696]
-                  hover:file:bg-[#FF6696]/20 file:cursor-pointer"
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-[#FF6696]/10 file:text-[#FF6696] hover:file:bg-[#FF6696]/20 file:cursor-pointer"
               />
-
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                <span className="text-[#FF0A57] font-bold">⚠️ Regla importante:</span> El <span className="font-bold underline">primer archivo</span> debe ser una <span className="font-bold">Foto</span> para la portada. Los videos van después.
-              </p>
-
-              {/* Previews */}
               {previewUrls.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 mt-2">
                   {previewUrls.map((item, index) => (
                     <div key={index} className="relative h-20 bg-white border border-slate-200 rounded-lg overflow-hidden group">
                       {item.esVideo ? (
-                        <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white/70" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                          </svg>
-                        </div>
+                        <div className="w-full h-full bg-slate-900 flex items-center justify-center">🎥</div>
                       ) : (
                         <img src={item.url} alt="Preview" className="w-full h-full object-cover" />
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => eliminarFotoDePreview(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-
-                      {index === 0 && (
-                        <span className="absolute bottom-0 inset-x-0 bg-[#FF0A57] text-[8px] text-white font-black text-center py-0.5 uppercase tracking-wide">
-                          Portada
-                        </span>
-                      )}
+                      <button type="button" onClick={() => eliminarFotoDePreview(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 text-xs">✕</button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Botones de acción */}
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
-              <button
-                type="submit"
-                className="w-full sm:flex-1 bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-3.5 rounded-xl uppercase tracking-wider text-xs transition-all cursor-pointer shadow-md text-center"
-              >
+              <button type="submit" className="w-full sm:flex-1 bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-3.5 rounded-xl uppercase tracking-wider text-xs shadow-md">
                 {nuevoProducto.id ? 'Guardar Cambios' : 'Publicar Producto'}
               </button>
-
               {nuevoProducto.id && (
-                <button
-                  type="button"
-                  onClick={(e) => handleCancelarEdicion(e)}
-                  className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-5 py-3.5 rounded-xl uppercase tracking-wider text-xs transition-all cursor-pointer border border-slate-200 text-center"
-                >
-                  Cancelar edición
+                <button type="button" onClick={handleCancelarEdicion} className="w-full sm:w-auto bg-slate-100 text-slate-600 font-bold px-5 py-3.5 rounded-xl text-xs border">
+                  Cancelar
                 </button>
               )}
             </div>
@@ -283,109 +306,221 @@ const AdminPage = forwardRef((props, ref) => {
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
               📦 Listado de Stock ({productos?.length || 0})
             </h2>
-
             <button
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                try {
-                  await obtenerProductosSupabase();
-                } catch (err) {
-                  console.error(err);
-                }
-              }}
-              className="w-full sm:w-auto justify-center bg-white border-2 border-[#FF6696]/40 hover:bg-[#FF6696] hover:text-white text-[#FF6696] text-[12px] font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-xs"
+              type="button" onClick={obtenerProductosSupabase}
+              className="w-full sm:w-auto justify-center bg-white border-2 border-[#FF6696]/40 text-[#FF6696] hover:bg-[#FF6696] hover:text-white text-[12px] font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
             >
               🔄 Actualizar Tabla
             </button>
           </div>
 
-          {/* Opc. A: VISTA DE TARJETAS PARA CELULARES (Bloque exclusivo mobile) */}
+          {/* Opc. A: VISTA DE TARJETAS PARA CELULARES */}
           <div className="block md:hidden space-y-3">
             {productos?.map(prod => (
-              <div key={prod.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <img src={prod.imagen_url} className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200 shrink-0" alt="" />
-                  <div className="min-w-0">
-                    <h4 className="font-bold text-sm text-slate-900 truncate">{prod.nombre}</h4>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="bg-slate-200 px-1.5 py-0.5 rounded-xs uppercase text-[9px] font-black text-slate-600">{prod.marca}</span>
-                      <span className="text-xs font-black text-[#FF0A57]">${prod.precio_menor}</span>
+              <div key={prod.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={prod.imagen_url} className="w-12 h-12 rounded-lg object-cover bg-white border shrink-0" alt="" />
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-slate-900 truncate">{prod.nombre}</h4>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="bg-slate-200 px-1.5 py-0.5 rounded-xs uppercase text-[7px] font-black text-slate-600">{prod.marca}</span>
+                        <span className="text-xs font-black text-[#FF0A57]">${prod.precio_menor}</span>
+                      </div>
                     </div>
-                    {/* Mini lista de talles disponibles */}
-                    <div className="flex flex-wrap gap-0.5 mt-1.5">
-                      {prod.talles?.map(t => (
-                        <span key={t} className="bg-white border border-slate-200/60 px-1 rounded-xs text-[9px] font-bold text-slate-500">{t}</span>
-                      ))}
-                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => handleCargarEdicion(prod)} className="bg-slate-200/80 p-1.5 rounded-lg text-xs">✏️</button>
+                    <button onClick={() => handleEliminarProducto(prod.id)} className="bg-rose-100 text-rose-600 p-1.5 rounded-lg text-xs">🗑️</button>
                   </div>
                 </div>
 
-                {/* Acciones Mobile agrupadas verticalmente de forma compacta */}
-                <div className="flex flex-col gap-1 shrink-0">
+                {/* BOTÓN DESPLEGABLE DE STOCK EN MOBILE */}
+                <div>
                   <button 
-                    onClick={() => handleCargarEdicion(prod)}
-                    className="bg-slate-200/80 hover:bg-slate-200 p-2.5 rounded-lg text-xs cursor-pointer transition-colors text-center"
-                    title="Editar"
+                    onClick={() => setProductoStockAbierto(productoStockAbierto === prod.id ? null : prod.id)}
+                    className="w-full bg-slate-900 text-white font-bold text-[11px] py-1.5 rounded-lg uppercase tracking-wide flex justify-center items-center gap-1.5 cursor-pointer"
                   >
-                    ✏️
+                    {productoStockAbierto === prod.id ? '📊 Ocultar Unidades' : '📊 Gestionar Cantidades'}
                   </button>
-                  <button 
-                    onClick={() => handleEliminarProducto(prod.id)}
-                    className="bg-rose-100 hover:bg-rose-200 p-2.5 rounded-lg text-xs cursor-pointer transition-colors text-center"
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
+
+                  {productoStockAbierto === prod.id && (
+                    <div className="mt-2 bg-white border border-slate-200 p-3 rounded-xl space-y-2">
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase">Talles cargados:</h5>
+                      {prod.stock_variantes && prod.stock_variantes.length > 0 ? (
+                        <div className="divide-y divide-slate-100">
+                          {prod.stock_variantes.map(v => (
+                            <div key={v.id} className="flex items-center justify-between py-1.5 text-xs">
+                              <span className="font-bold text-slate-700">Talle {v.talle}</span>
+                              <div className="flex items-center gap-2">
+                                <button disabled={cargandoStock} onClick={() => handleModificarCantidadStock(v.id, v.cantidad, 'restar')} className="w-6 h-6 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-md flex items-center justify-center cursor-pointer select-none">-</button>
+                                <span className={`font-black w-6 text-center ${v.cantidad === 0 ? 'text-red-500' : 'text-slate-900'}`}>{v.cantidad}</span>
+                                <button disabled={cargandoStock} onClick={() => handleModificarCantidadStock(v.id, v.cantidad, 'sumar')} className="w-6 h-6 bg-slate-900 text-white font-bold rounded-md flex items-center justify-center cursor-pointer select-none">+</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic">No hay variantes cargadas en stock_variantes.</p>
+                      )}
+                      
+                      {/* Agregador rápido de talle por si falta */}
+                      <div className="pt-2 border-t border-slate-100 flex gap-1.5">
+                        <select 
+                          id={`select-talle-mob-${prod.id}`}
+                          className="flex-1 bg-slate-50 border border-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-hidden"
+                        >
+                          <option value="">Añadir talle...</option>
+                          {listaTallesDisponibles.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const val = document.getElementById(`select-talle-mob-${prod.id}`).value;
+                            handleCrearNuevaVarianteTalle(prod.id, val);
+                          }}
+                          className="bg-[#FF6696] text-white text-xs font-bold px-3 py-1 rounded-lg"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Opc. B: TABLA TRADICIONAL (Oculta en mobile, se muestra desde tablets en adelante) */}
+          {/* Opc. B: TABLA TRADICIONAL (Desktop) - Integrada con Radix UI */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase font-black text-[12px]">
                   <th className="py-2.5">Modelo</th>
                   <th className="py-2.5">Marca</th>
-                  <th className="py-2.5">Talles</th>
-                  <th className="py-2.5">Precios</th>
+                  <th className="py-2.5 text-center">Control Stock Real por Talle</th>
+                  <th className="py-2.5">Precio</th>
                   <th className="py-2.5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {productos?.map(prod => (
                   <tr key={prod.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Columna Modelo */}
                     <td className="py-3 flex items-center gap-2.5 max-w-[160px]">
                       <img src={prod.imagen_url} className="w-8 h-8 rounded-md object-cover bg-slate-100 border" alt="" />
                       <span className="truncate font-bold text-slate-900">{prod.nombre}</span>
                     </td>
-                    <td className="py-3"><span className="bg-slate-100 px-2 py-0.5 rounded-sm uppercase text-[9px] font-bold text-slate-600">{prod.marca}</span></td>
+                    
+                    {/* Columna Marca */}
                     <td className="py-3">
-                      <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                        {prod.talles?.map(t => (
-                          <span key={t} className="bg-slate-50 border border-slate-100 px-1 rounded-xs text-[9px] text-slate-500">{t}</span>
-                        ))}
-                      </div>
+                      <span className="bg-slate-100 px-2 py-0.5 rounded-sm uppercase text-[9px] font-bold text-slate-600">{prod.marca}</span>
                     </td>
-                    <td className="py-3 text-slate-900">
-                      <span className="block font-bold">${prod.precio_menor}</span>
+                    
+                    {/* Columna Dropdown de Radix (Acá estaba el problema de la variable) */}
+                    <td className="py-3 text-center">
+                      <DropdownMenu.Root>
+                        <DropdownMenu.Trigger asChild>
+                          <button
+                            type="button"
+                            className="mx-auto font-black text-[11px] px-3 py-1.5 rounded-xl uppercase tracking-wider flex items-center gap-1.5 bg-white border border-slate-200 hover:border-[#FF6696] text-slate-700 hover:text-[#FF6696] shadow-2xs cursor-pointer transition-all outline-hidden"
+                          >
+                            📊 Gestionar
+                            <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-500">
+                              {prod.stock_variantes?.reduce((acc, v) => acc + (v.cantidad || 0), 0) || 0} u.
+                            </span>
+                          </button>
+                        </DropdownMenu.Trigger>
+
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content
+                            sideOffset={5}
+                            className="z-50 min-w-[240px] bg-white border border-slate-200/80 p-3 rounded-2xl shadow-xl space-y-2 outline-hidden"
+                          >
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pb-1.5 border-b border-slate-100 mb-1">
+                              Talles en inventario
+                            </div>
+
+                            {prod.stock_variantes && prod.stock_variantes.length > 0 ? (
+                              <div className="max-h-[180px] overflow-y-auto space-y-1.5 pr-1">
+                                {prod.stock_variantes
+                                  // 🛠️ FILTRADO: Oculta los talles en 0 para limpiar la visual de Melani
+                                  .filter(v => v.cantidad > 0)
+                                  // 🛠️ ORDENAMIENTO: Ordena los talles de menor a mayor (ej: T 40, T 43, T 44)
+                                  .sort((a, b) => Number(a.talle) - Number(b.talle))
+                                  .map(v => (
+                                    <div key={v.id} className="flex items-center justify-between p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+                                      <span className="font-extrabold text-[11px] text-slate-700 bg-white border border-slate-200/60 px-2 py-0.5 rounded-md">
+                                        T {v.talle}
+                                      </span>
+                                      
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          type="button" disabled={cargandoStock}
+                                          onClick={() => handleModificarCantidadStock(v.id, v.cantidad, 'restar')} 
+                                          className="w-5 h-5 bg-white hover:bg-slate-200 border border-slate-200 font-black rounded-md flex items-center justify-center cursor-pointer text-xs transition-colors select-none active:scale-95"
+                                        >
+                                          -
+                                        </button>
+                                        <span className={`font-black text-xs w-4 text-center ${v.cantidad === 0 ? 'text-rose-500' : 'text-slate-800'}`}>
+                                          {v.cantidad}
+                                        </span>
+                                        <button 
+                                          type="button" disabled={cargandoStock}
+                                          onClick={() => handleModificarCantidadStock(v.id, v.cantidad, 'sumar')} 
+                                          className="w-5 h-5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-md flex items-center justify-center cursor-pointer text-xs transition-colors select-none active:scale-95"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  
+                                {/* 💡 Un seguro visual: si tenía variantes cargadas pero todas están en 0 */}
+                                {prod.stock_variantes.filter(v => v.cantidad > 0).length === 0 && (
+                                  <p className="text-[11px] text-slate-400 italic py-1 text-center">Sin talles con stock disponible.</p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 italic py-1 text-center">Sin talles cargados.</p>
+                            )}
+
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                              <select 
+                                id={`select-talle-radix-${prod.id}`}
+                                className="bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 flex-1 focus:border-[#FF6696] outline-hidden text-slate-600 cursor-pointer"
+                              >
+                                <option value="">+ Talle</option>
+                                {listaTallesDisponibles.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const el = document.getElementById(`select-talle-radix-${prod.id}`);
+                                  handleCrearNuevaVarianteTalle(prod.id, el.value);
+                                  el.value = "";
+                                }}
+                                className="bg-slate-900 hover:bg-[#FF6696] text-white font-black px-2.5 py-1 rounded-lg text-[10px] cursor-pointer transition-colors shadow-2xs"
+                              >
+                                OK
+                              </button>
+                            </div>
+
+                            <DropdownMenu.Arrow className="fill-white stroke-slate-200 stroke-1" width={10} height={5} />
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu.Root>
                     </td>
+
+                    {/* Columna Precio */}
+                    <td className="py-3 text-slate-900 font-bold">
+                      ${prod.precio_menor}
+                    </td>
+
+                    {/* Columna Acciones */}
                     <td className="py-3 text-right">
                       <div className="flex justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleCargarEdicion(prod)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors"
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          onClick={() => handleEliminarProducto(prod.id)}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors"
-                        >
-                          🗑️
-                        </button>
+                        <button onClick={() => handleCargarEdicion(prod)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer">✏️</button>
+                        <button onClick={() => handleEliminarProducto(prod.id)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer">🗑️</button>
                       </div>
                     </td>
                   </tr>
@@ -399,4 +534,5 @@ const AdminPage = forwardRef((props, ref) => {
     </div>
   );
 });
+
 export default AdminPage;

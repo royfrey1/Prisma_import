@@ -1,5 +1,4 @@
 import React from 'react';
-import TarjetaProducto from './TarjetaProducto';
 
 export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, onVerDetalle }) {
   return (
@@ -37,7 +36,7 @@ export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, 
                 Colores: <span className="text-slate-500">{prod.colores || 'Estándar'}</span>
               </p>
               
-              {/* Muestra rápida de talles optimizada */}
+              {/* Muestra rápida de talles */}
               <div className="mt-2">
                 <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider block mb-1">
                   Talles disp:
@@ -55,7 +54,7 @@ export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, 
               </div>
             </div>
 
-            {/* BOTTOM: Precio y Fila de Botones Adaptativa */}
+            {/* BOTTOM: Precio y Fila de Botones */}
             <div className="mt-1 pt-2 border-t border-slate-100">
               <div className="flex flex-col gap-0.5 mb-2.5">
                 <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Precio</span>
@@ -64,29 +63,28 @@ export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, 
                 </span>
               </div>
 
-              {/* CONTENEDOR DE BOTONES: En vertical para celular (flex-col), en horizontal para PC (sm:grid-cols-2) */}
+              {/* Botones adaptativos: En la tablet de Melani se van a ver perfectos uno al lado del otro */}
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-1.5">
                 
                 {/* Botón Ver Detalle */}
                 <button
                   type="button"
                   onClick={() => onVerDetalle(prod)}
-                  className="w-full bg-slate-950 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  className="w-full bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-chewy uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                 >
                   🔍 Detalle
                 </button>
 
-                {/* Botón Añadir Rápido */}
+                {/* Botón Añadir (Abre detalle para obligar a elegir talle) */}
                 <button
                   type="button"
-                  onClick={() => onVerDetalle(prod)}
-                  className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  onClick={() => onVerDetalle(prod)} 
+                  className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white text-[13px] font-chewy uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                 >
                   🛍️ Añadir
                 </button>
                 
               </div>
-
             </div>
           </div>
 
