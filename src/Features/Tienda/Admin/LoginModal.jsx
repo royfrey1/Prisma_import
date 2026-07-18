@@ -1,23 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginAdministrador, cargando }) {
 
-  // 🔒 SOLUCIÓN 2: Controla el scroll usando el estado real 'mostrarLogin'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+
+  // 🔒 Control del scroll del body e higiene del formulario al abrir/cerrar
   useEffect(() => {
     if (mostrarLogin) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      // Limpia las credenciales al cerrar por seguridad
+      setEmail('');
+      setPassword('');
+      setMostrarPassword(false);
     }
   
     return () => {
       document.body.style.overflow = '';
     };
   }, [mostrarLogin]);
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -30,6 +34,7 @@ export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginA
         mostrarLogin ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >
+      {/* Fondo clickeable para cerrar */}
       <div className="absolute inset-0" onClick={() => setMostrarLogin(false)}></div>
       
       <div 
@@ -38,16 +43,16 @@ export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginA
         }`}
       >
         
-        {/* CABECERA */}
+        {/* CABECERA (Integrada con la identidad visual del proyecto) */}
         <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
           <div>
-            <h3 className="font-black text-sm tracking-tight uppercase">Autenticación de Gestión</h3>
+            <h3 className="font-chewy text-base tracking-wide uppercase text-[#FF6696]">Autenticación de Gestión</h3>
             <p className="text-[10px] text-slate-400 font-medium">Uso exclusivo para propietarios.</p>
           </div>
           <button 
             type="button"
             onClick={() => setMostrarLogin(false)} 
-            className="text-slate-400 hover:text-white text-xs cursor-pointer"
+            className="text-slate-400 hover:text-white text-xs cursor-pointer font-bold p-1"
           >
             ✕
           </button>
@@ -83,7 +88,7 @@ export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginA
                 onClick={() => setMostrarPassword(!mostrarPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer select-none"
               >
-                {mostrarPassword ? "👁️" : "👁️‍🗨️"}
+                {mostrarPassword ? "👀" : "👁️"}
               </button>
             </div>
           </div>
@@ -91,7 +96,7 @@ export default function LoginModal({ mostrarLogin, setMostrarLogin, handleLoginA
           <button 
             type="submit" 
             disabled={cargando}
-            className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-[11px] hover:bg-[#FF6696] transition-all cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-slate-900 text-white font-chewy py-3 rounded-xl uppercase tracking-wider text-xs hover:bg-[#FF6696] transition-all cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cargando ? "Validando accesos..." : "Ingresar al Sistema"}
           </button>

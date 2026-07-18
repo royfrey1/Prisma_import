@@ -178,7 +178,7 @@ const AdminPage = forwardRef((props, ref) => {
         
         {/* COLUMNA FORMULARIO DE CARGA / EDICIÓN (5 Columnas) */}
         <section ref={ref} className="lg:col-span-5 bg-white p-4 sm:p-6 rounded-2xl border border-[#FF6696] shadow-2xs h-fit">
-          <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-5 pb-3 border-b border-[#FF6696]/40">
+          <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-5 pb-3 border-b border-[#FF6696]/40 font-chewy">
             {nuevoProducto.id ? "📝 Editar Producto" : "👟 Cargar Nuevo Modelo"}
           </h2>
 
@@ -244,23 +244,91 @@ const AdminPage = forwardRef((props, ref) => {
                 className="w-full bg-slate-50 border border-slate-200 focus:border-[#FF6696] focus:ring-2 focus:ring-[#FF6696]/20 rounded-xl px-3 py-2.5 text-xs transition-all outline-hidden text-slate-800"
               />
             </div>
+            
+            {/* 👟 SECCIÓN DE TALLES LIMITADA A MÁXIMO 10 UNIDADES */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-3">
+                Curva de Talles y Unidades en Stock (Máx. 10)
+              </label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {listaTallesDisponibles.map(t => {
+                  // 🛡️ Validación: Verificamos si es un objeto de stock válido, si no, es 0
+                  const stockActual = (nuevoProducto.talles && typeof nuevoProducto.talles === 'object' && !Array.isArray(nuevoProducto.talles))
+                    ? (nuevoProducto.talles[t] || 0)
+                    : 0;
 
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">Curva de Talles en Stock</label>
-              <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap">
-                {listaTallesDisponibles.map(t => (
-                  <button
-                    key={t} type="button"
-                    onClick={() => handleTalleSeleccionado(t)}
-                    className={`py-2 sm:px-2.5 sm:py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      nuevoProducto.talles?.includes(t)
-                        ? 'bg-[#FF6696] text-white border-[#FF6696] shadow-xs'
-                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+                  const tieneStock = stockActual > 0;
+
+                  // ➕ Función local para sumar 1 unidad (Bloqueada a 10)
+                  const sumarPar = () => {
+                    if (stockActual >= 10) return; // 🚫 Freno de mano si ya llegó a 10
+                    
+                    const tallesActuales = (nuevoProducto.talles && typeof nuevoProducto.talles === 'object' && !Array.isArray(nuevoProducto.talles)) 
+                      ? { ...nuevoProducto.talles } 
+                      : {};
+                    
+                    setNuevoProducto({
+                      ...nuevoProducto,
+                      talles: {
+                        ...tallesActuales,
+                        [t]: stockActual + 1
+                      }
+                    });
+                  };
+
+                  // ➖ Función local para restar 1 unidad
+                  const restarPar = () => {
+                    if (stockActual === 0) return;
+                    const tallesActuales = { ...nuevoProducto.talles };
+                    
+                    if (stockActual <= 1) {
+                      delete tallesActuales[t]; // Lo remueve del objeto si llega a 0
+                    } else {
+                      tallesActuales[t] = stockActual - 1;
+                    }
+
+                    setNuevoProducto({
+                      ...nuevoProducto,
+                      talles: tallesActuales
+                    });
+                  };
+
+                  return (
+                    <div 
+                      key={t}
+                      className={`flex flex-col items-center p-1.5 bg-white rounded-xl border transition-all ${
+                        tieneStock ? 'border-[#FF6696] shadow-2xs' : 'border-slate-200'
+                      }`}
+                    >
+                      <span className={`text-[11px] font-black mb-1 ${tieneStock ? 'text-[#FF6696]' : 'text-slate-500'}`}>
+                        T {t}
+                      </span>
+
+                      {/* Selector de cantidad */}
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 rounded-lg p-0.5 w-full">
+                        <button
+                          type="button"
+                          onClick={restarPar}
+                          disabled={stockActual === 0}
+                          className="w-5 h-5 rounded-md flex items-center justify-center bg-white border border-slate-200 text-slate-600 font-bold text-[11px] active:scale-90 disabled:opacity-20 cursor-pointer select-none"
+                        >
+                          -
+                        </button>
+                        <span className={`flex-1 text-center font-black text-[11px] ${tieneStock ? 'text-slate-900' : 'text-slate-300'}`}>
+                          {tieneStock ? stockActual : "-"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={sumarPar}
+                          disabled={stockActual >= 10} // 🚫 Deshabilita visualmente el botón + al llegar a 10
+                          className="w-5 h-5 rounded-md flex items-center justify-center bg-slate-900 disabled:bg-slate-300 text-white font-bold text-[11px] active:scale-90 disabled:active:scale-100 cursor-pointer disabled:cursor-not-allowed select-none"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -288,7 +356,7 @@ const AdminPage = forwardRef((props, ref) => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
-              <button type="submit" className="w-full sm:flex-1 bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-3.5 rounded-xl uppercase tracking-wider text-xs shadow-md">
+              <button type="submit" className="w-full sm:flex-1 bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white font-black py-3.5 rounded-xl uppercase tracking-wider text-xs shadow-md font-chewy">
                 {nuevoProducto.id ? 'Guardar Cambios' : 'Publicar Producto'}
               </button>
               {nuevoProducto.id && (

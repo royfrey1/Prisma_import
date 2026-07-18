@@ -28,7 +28,7 @@ export default function Footer() {
             </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1 font-medium">
-            Distribuidora oficial de calzado deportivo de primera calidad.
+            Distribuidora oficial de calzados de primera calidad.
           </p>
         </div>
 

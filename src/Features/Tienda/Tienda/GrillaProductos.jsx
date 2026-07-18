@@ -70,18 +70,18 @@ export default function GrillaProductos({ productosFiltrados, agregarAlCarrito, 
                 <button
                   type="button"
                   onClick={() => onVerDetalle(prod)}
-                  className="w-full bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-chewy uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  className="w-full bg-slate-950 hover:bg-slate-800 text-white text-[10px] font-chewy uppercase tracking-wider py-1 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                 >
-                  🔍 Detalle
+                  Ver detalle
                 </button>
 
                 {/* Botón Añadir (Abre detalle para obligar a elegir talle) */}
                 <button
                   type="button"
                   onClick={() => onVerDetalle(prod)} 
-                  className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white text-[13px] font-chewy uppercase tracking-wider py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  className="w-full bg-[#FF0A57] hover:bg-[#FF0A57]/90 text-white text-[10px] font-chewy uppercase tracking-wider py-1 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                 >
-                  🛍️ Añadir
+                  Añadir al carrito
                 </button>
                 
               </div>

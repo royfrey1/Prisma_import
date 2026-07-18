@@ -36,7 +36,7 @@ export default function TiendaZapatillasCompleta() {
     precio_mayor: '',
     imagen_url: '',
     colores: '', // Se ingresan separados por comas
-    talles: []   // Array dinámico de talles seleccionados
+    talles: {}   // Array dinámico de talles seleccionados
   });
 
   // Talles disponibles que Melani podrá tildar en su panel
@@ -247,7 +247,7 @@ export default function TiendaZapatillasCompleta() {
     }
 
     try {
-      // 🌟 1. LOGICA DE SUBIDA MÚLTIPLE AL STORAGE
+      // 🌟 1. LÓGICA DE SUBIDA MÚLTIPLE AL STORAGE
       let listaUrlsFinales = [];
 
       // Si estamos editando, preservamos los archivos que ya tenía guardados de antes
@@ -274,13 +274,18 @@ export default function TiendaZapatillasCompleta() {
         }
       }
 
-      // 🌟 Como blindamos el formulario en el Paso 2, listaUrlsFinales[0] es una Foto real garantizada
+      // 🌟 Como blindamos el formulario, listaUrlsFinales[0] es una Foto real garantizada
       const portadaPrincipal = listaUrlsFinales.length > 0 
         ? listaUrlsFinales[0] 
         : (nuevoProducto.imagen_url || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500');
 
-      // Definimos la lista de talles a guardar en la tabla 'zapatillas'
-      const tallesAsignados = nuevoProducto.talles && nuevoProducto.talles.length > 0 ? nuevoProducto.talles : [40];
+      // 🛠️ MIGRACIÓN DE MÉTODO: Extraer las llaves si 'talles' viene como objeto de cantidades
+      const esObjetoStock = nuevoProducto.talles && typeof nuevoProducto.talles === 'object' && !Array.isArray(nuevoProducto.talles);
+      
+      // Creamos el array de números para la columna 'talles' de la tabla 'zapatillas'
+      const tallesAsignados = esObjetoStock 
+        ? Object.keys(nuevoProducto.talles).map(Number)
+        : (nuevoProducto.talles && nuevoProducto.talles.length > 0 ? nuevoProducto.talles : [40]);
 
       // 🌟 2. ARMAR EL OBJETO PARA SUPABASE CON LAS DOS COLUMNAS DE IMÁGENES
       const datosProducto = {
@@ -291,20 +296,48 @@ export default function TiendaZapatillasCompleta() {
         precio_mayor: parseFloat(nuevoProducto.precio_mayor) || 0,
         imagen_url: portadaPrincipal, // Tu columna clásica (Portada en Grilla)
         imagenes_urls: listaUrlsFinales, // Tu array de galería (Fotos + Videos)
-        talles: tallesAsignados, // Tu array de texto viejo
+        talles: tallesAsignados, // Tu array de texto viejo conservado
         colores: arrayColores.length > 0 ? arrayColores : ['Multicolor']
       };
 
       if (nuevoProducto.id) {
-        // CASO EDICIÓN: Actualizamos la zapatilla
+        // 📝 CASO EDICIÓN: Actualizamos la zapatilla principal
         const { error: errorUpdate } = await supabase
           .from('zapatillas')
           .update(datosProducto)
           .eq('id', nuevoProducto.id);
           
         if (errorUpdate) throw errorUpdate;
+
+        // 🔄 SINCRONIZACIÓN DE STOCK EN TIEMPO REAL AL EDITAR:
+        if (esObjetoStock) {
+          for (const [talleStr, cantidad] of Object.entries(nuevoProducto.talles)) {
+            const talleNum = Number(talleStr);
+
+            // Intentamos hacer un update por si el talle ya existía asignado al producto
+            const { data: updateData, error: errUpVariant } = await supabase
+              .from('stock_variantes')
+              .update({ cantidad: cantidad })
+              .eq('producto_id', nuevoProducto.id)
+              .eq('talle', talleNum)
+              .select();
+
+            if (errUpVariant) throw errUpVariant;
+
+            // Si updateData está vacío, significa que el talle no existía para este ID en la base de datos.
+            // Lo insertamos de cero con el stock asignado en el formulario.
+            if (!updateData || updateData.length === 0) {
+              const { error: errInVariant } = await supabase
+                .from('stock_variantes')
+                .insert([{ producto_id: nuevoProducto.id, talle: talleNum, cantidad: cantidad }]);
+                
+              if (errInVariant) throw errInVariant;
+            }
+          }
+        }
+
       } else {
-        // CASO NUEVO: Insertamos la zapatilla agregando el .select() para capturar su ID autogenerado
+        // 👟 CASO NUEVO: Insertamos la zapatilla agregando el .select() para capturar su ID autogenerado
         const { data: productoCreado, error: errorInsert } = await supabase
           .from('zapatillas')
           .insert([datosProducto])
@@ -312,23 +345,36 @@ export default function TiendaZapatillasCompleta() {
 
         if (errorInsert) throw errorInsert;
 
-        // 🌟 AUTOMATIZACIÓN DE STOCK: Insertamos masivamente en 'stock_variantes'
+        // 🌟 AUTOMATIZACIÓN DE STOCK REAL: Insertamos masivamente en 'stock_variantes'
         if (productoCreado && productoCreado.length > 0) {
           const idZapatillaNueva = productoCreado[0].id;
 
-          // Creamos el array de filas listo para mandar a la tabla secundaria
-          const filasStockInicial = tallesAsignados.map(talle => ({
-            producto_id: idZapatillaNueva,
-            talle: talle,
-            cantidad: 1 // 👟 Cambialo a 0 si preferís que arranquen sin stock
-          }));
+          let filasStockInicial = [];
 
-          const { error: errorStock } = await supabase
-            .from('stock_variantes')
-            .insert(filasStockInicial);
+          if (esObjetoStock) {
+            // Mapeamos el objeto { "38": 3, "39": 1 } a filas individuales con su stock real
+            filasStockInicial = Object.entries(nuevoProducto.talles).map(([talle, cantidad]) => ({
+              producto_id: idZapatillaNueva,
+              talle: Number(talle),
+              cantidad: cantidad
+            }));
+          } else {
+            // Fallback por si viniese un array viejo por alguna razón
+            filasStockInicial = tallesAsignados.map(talle => ({
+              producto_id: idZapatillaNueva,
+              talle: talle,
+              cantidad: 1 
+            }));
+          }
 
-          if (errorStock) {
-            console.error("Aviso: Se creó el producto pero falló la inicialización de talles:", errorStock.message);
+          if (filasStockInicial.length > 0) {
+            const { error: errorStock } = await supabase
+              .from('stock_variantes')
+              .insert(filasStockInicial);
+
+            if (errorStock) {
+              console.error("Aviso: Se creó el producto pero falló la inicialización de talles:", errorStock.message);
+            }
           }
         }
       }
@@ -339,7 +385,7 @@ export default function TiendaZapatillasCompleta() {
         title: nuevoProducto.id ? '¡Cambios guardados!' : '¡Sincronizado!',
         text: nuevoProducto.id 
           ? `"${nuevoProducto.nombre}" se actualizó correctamente con sus imágenes.`
-          : `"${nuevoProducto.nombre}" ya está publicado y sus talles se vincularon al stock real.`,
+          : `"${nuevoProducto.nombre}" ya está publicado y sus cantidades se guardaron en el stock real.`,
         confirmButtonColor: '#FF6696',
         customClass: { popup: 'rounded-2xl' }
       });
@@ -347,7 +393,7 @@ export default function TiendaZapatillasCompleta() {
       // Actualizamos el estado global
       await obtenerProductosSupabase();
 
-      // 🌟 3. LIMPIEZA TOTAL DEL FORMULARIO Y DE LOS ESTADOS DE PREVIEWS EN EL PANEL
+      // 🌟 3. LIMPIEZA TOTAL DEL FORMULARIO E INICIALIZACIÓN DE TALLES COMO OBJETO VACÍO
       setNuevoProducto({ 
         id: null, 
         nombre: '', 
@@ -358,7 +404,7 @@ export default function TiendaZapatillasCompleta() {
         imagen_url: '', 
         imagenes_urls: [], 
         colores: '', 
-        talles: [] 
+        talles: {} // 👈 Cambiado a objeto vacío para esperar el nuevo esquema de cantidades
       });
 
       // Reseteamos los estados del formulario usando los callbacks que enviamos del Paso 2
@@ -423,24 +469,44 @@ export default function TiendaZapatillasCompleta() {
 
   // --- FUNCIÓN PARA PRECARGAR LOS DATOS EN EL FORMULARIO DE CARGA ---
   const handleCargarEdicion = (producto) => {
-    setNuevoProducto({
-      id: producto.id, // Mantenemos el ID para saber que es una edición
-      nombre: producto.nombre,
-      marca: producto.marca,
-      sexo: producto.sexo || 'Unisex',
-      precio_menor: producto.precio_menor,
-      precio_mayor: producto.precio_mayor,
-      imagen_url: producto.imagen_url,
-      colores: producto.colores ? producto.colores.join(', ') : '',
-      talles: producto.talles || []
-    });
+   let tallesFormateados = {};
+   
+   // 👟 Buscamos si el producto ya viene con sus variantes de stock real acopladas
+   if (producto.stock_variantes && Array.isArray(producto.stock_variantes)) {
+     // Si tu consulta de Supabase ya trae la relación, usamos la cantidad exacta de la base de datos
+     producto.stock_variantes.forEach(v => {
+       if (v.cantidad > 0) {
+         tallesFormateados[v.talle] = v.cantidad;
+       }
+     });
+   } else if (Array.isArray(producto.talles)) {
+     // Fallback: Si no tiene la relación acoplada todavía en el objeto local, 
+     // podemos intentar buscar las variantes vigentes dentro de su estructura o dejar el 1 temporal.
+     producto.talles.forEach(talle => {
+       tallesFormateados[talle] = 1; 
+     });
+   } else if (producto.talles && typeof producto.talles === 'object') {
+     tallesFormateados = { ...producto.talles };
+   }
 
-    setTimeout(() => {
-      formularioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100); // Un mini delay para asegurar que el cambio de estado no trabe la animación
+   setNuevoProducto({
+     id: producto.id,
+     nombre: producto.nombre,
+     marca: producto.marca,
+     sexo: producto.sexo || 'Unisex',
+     precio_menor: producto.precio_menor,
+     precio_mayor: producto.precio_mayor,
+     imagen_url: producto.imagen_url,
+     colores: producto.colores ? producto.colores.join(', ') : '',
+     talles: tallesFormateados // 👈 Ahora carga con las cantidades de stock reales
+   });
+
+   setTimeout(() => {
+     formularioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+   }, 100);
   };
 
-    const handleCancelarEdicion = (e) => {
+  const handleCancelarEdicion = (e) => {
       // 1. Evitamos que el formulario intente procesar o validar campos al cancelar
       if (e) e.preventDefault(); e.stopPropagation();
 
@@ -467,7 +533,7 @@ export default function TiendaZapatillasCompleta() {
         timer: 1500
       });
 
-    };
+  };
 
   return (
     <div className="min-h-screen bg-[#FFE8EE] text-slate-800 font-sans antialiased">

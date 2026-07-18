@@ -54,80 +54,82 @@ export default function TiendaPage({
       {/* SECCIÓN HERO DE BIENVENIDA */}
       <Hero />  
 
-      {/* SECCIÓN DE INFORMACIÓN INSTITUCIONAL */}
-      <section className="bg-white border-t border-b border-slate-200/60 py-12 px-4 mt-16 shadow-2xs">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-xl mx-auto mb-10">
-            <h2 className="text-sm font-chewy tracking-widest text-[#FF6696] uppercase mb-2">Información Importante</h2>
-            <p className="text-slate-500 font-bold text-xs">Todo lo que necesitás saber antes de coordinar tu pedido con nosotros.</p>
+        {/* SECCIÓN DE INFORMACIÓN INSTITUCIONAL */}
+        <section className="bg-white border-t border-b border-slate-200/60 py-12 px-4 mt-16 shadow-2xs">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center max-w-xl mx-auto mb-10">
+              <h2 className="text-sm font-chewy tracking-widest text-[#FF6696] uppercase mb-2">Información Importante</h2>
+              <p className="text-slate-500 font-bold text-xs">Todo lo que necesitás saber antes de coordinar tu pedido con nosotros.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* 1. Envíos Nacionales Corregidos */}
+              <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <h3 className="font-chewy text-slate-900 text-sm mb-1">Envíos a Todo el País</h3>
+                  <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
+                    Realizamos envíos nacionales a cualquier punto de la Argentina. Coordinamos la empresa de transporte que te sea más cómoda al momento de confirmar el pedido por WhatsApp.
+                  </p>
+                </div>
+              </div>
+
+              {/* 2. Venta por unidad (Mensaje de compra mínima conservado) */}
+              <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
+                <span className="text-2xl">🛍️</span>
+                <div>
+                  <h3 className="font-chewy text-slate-900 text-sm mb-1">Compra Minorista Directa</h3>
+                  <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
+                    No exigimos mínimos de compra. Llevate el par que más te guste eligiendo libremente entre los talles y colores que registramos con stock en tiempo real.
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Atención Inmediata (Curva de talles eliminada) */}
+              <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <h3 className="font-chewy text-slate-900 text-sm mb-1">Atención Inmediata</h3>
+                  <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
+                    Una vez enviado tu carrito, nos pondremos en contacto para confirmar la disponibilidad de tu par seleccionado, acordar el método de pago y agilizar tu despacho.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
-              <span className="text-2xl">📍</span>
-              <div>
-                <h3 className="font-chewy text-slate-900 text-sm mb-1">Envíos Locales y Nacionales</h3>
-                <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
-                  Hacemos entregas directas y envíos a todo el país. Coordinamos el método que te sea más cómodo al momento de confirmar el pedido por WhatsApp.
-                </p>
-              </div>
-            </div>
+        {/* BARRA DE FILTROS AVANZADOS INTEGRADA */}
+        <Filtros 
+          filtroMarca={filtroMarca}
+          setFiltroMarca={setFiltroMarca}
+          filtroTalle={filtroTalle}
+          setFiltroTalle={setFiltroTalle}
+          filtroSexo={filtroSexo}
+          setFiltroSexo={setFiltroSexo}
+          listaTallesDisponibles={listaTallesDisponibles}
+          busqueda={busqueda}
+          setBusqueda={setBusqueda}
+          ordenPrecio={ordenPrecio}      
+          setOrdenPrecio={setOrdenPrecio}
+        />
 
-            {/* Adaptado a Venta Minorista Exclusiva */}
-            <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
-              <span className="text-2xl">🛍️</span>
-              <div>
-                <h3 className="font-chewy text-slate-900 text-sm mb-1">Compra Minorista Directa</h3>
-                <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
-                  No exigimos mínimos de compra. Llevate el par que más te guste eligiendo libremente entre los talles y colores que registramos con stock en tiempo real.
-                </p>
-              </div>
-            </div>
+        {/* GRILLA DE PRODUCTOS INTEGRADA */}
+        <GrillaProductos 
+          productosFiltrados={productosFiltradosYOrdenados} // 👈 Pasamos el array filtrado Y ordenado
+          tipoVenta={tipoVenta}
+          agregarAlCarrito={agregarAlCarrito}
+          onVerDetalle={(prod) => setProductoSeleccionado(prod)} 
+        />
 
-            <div className="bg-[#FFE8EE]/30 border border-[#FFE8EE] p-5 rounded-2xl flex gap-4">
-              <span className="text-2xl">⚡</span>
-              <div>
-                <h3 className="font-chewy text-slate-900 text-sm mb-1">Atención Inmediata</h3>
-                <p className="text-slate-500 text-[11px] leading-relaxed font-medium">
-                  Una vez enviado tu carrito, nos pondremos en contacto para validar la curva de talles, disponibilidad de colores y acordar el método de pago.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* BARRA DE FILTROS AVANZADOS INTEGRADA */}
-      <Filtros 
-        filtroMarca={filtroMarca}
-        setFiltroMarca={setFiltroMarca}
-        filtroTalle={filtroTalle}
-        setFiltroTalle={setFiltroTalle}
-        filtroSexo={filtroSexo}
-        setFiltroSexo={setFiltroSexo}
-        listaTallesDisponibles={listaTallesDisponibles}
-        busqueda={busqueda}
-        setBusqueda={setBusqueda}
-        ordenPrecio={ordenPrecio}      
-        setOrdenPrecio={setOrdenPrecio}
-      />
-
-      {/* GRILLA DE PRODUCTOS INTEGRADA */}
-      <GrillaProductos 
-        productosFiltrados={productosFiltradosYOrdenados} // 👈 Pasamos el array filtrado Y ordenado
-        tipoVenta={tipoVenta}
-        agregarAlCarrito={agregarAlCarrito}
-        onVerDetalle={(prod) => setProductoSeleccionado(prod)} 
-      />
-
-      {/* RENDERIZADO CONDICIONAL DEL MODAL DE DETALLE PREMIUM */}
-      <DetalleProductoModal 
-        isOpen={!!productoSeleccionado} 
-        producto={productoSeleccionado}
-        onClose={() => setProductoSeleccionado(null)} 
-        onAgregarAlPedido={agregarAlCarrito} 
-        onVerCarrito={() => setMostrarCarrito(true)}
-      />
-    </>
-  );
+        {/* RENDERIZADO CONDICIONAL DEL MODAL DE DETALLE PREMIUM */}
+        <DetalleProductoModal 
+          isOpen={!!productoSeleccionado} 
+          producto={productoSeleccionado}
+          onClose={() => setProductoSeleccionado(null)} 
+          onAgregarAlPedido={agregarAlCarrito} 
+          onVerCarrito={() => setMostrarCarrito(true)}
+        />
+      </>
+    );
 }

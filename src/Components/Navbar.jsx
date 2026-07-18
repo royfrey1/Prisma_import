@@ -49,9 +49,9 @@ export default function Navbar({
           ) : (
             <button
               onClick={() => setMostrarLogin(true)}
-              className="w-full md:w-auto flex items-center justify-center gap-1.5 border border-slate-200 hover:border-[#FF6696] text-slate-500 hover:text-[#FF6696] font-chewy text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl md:rounded-full transition-all cursor-pointer bg-white shadow-xs"
+              className="w-full md:w-auto flex items-center justify-center gap-1.5 border border-slate-200 hover:border-[#FF6696] text-slate-500 hover:text-[#FF6696] font-chewy text-[12px] uppercase tracking-wider px-4 py-2 rounded-xl md:rounded-full transition-all cursor-pointer bg-white shadow-xs"
             >
-              ⚙️ Ingreso Gestión
+              ⚙️ Panel de control
             </button>
           )}
 
